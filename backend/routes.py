@@ -1,114 +1,143 @@
-import sqlite3
 from fastapi import Form, HTTPException
-from main import app, DB_PATH
+from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
+from main import app, engine
 
 
 @app.get("/people")
 def list_people():
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
     result = {}
-
-    # Get all people and their colors
-    c.execute("SELECT name, color FROM people")
-    people = c.fetchall()
+    with engine.connect() as conn:
+        # Get all people and their colors
+        people = conn.execute(text("SELECT name, color FROM people")).fetchall()
 
     if not people:
         # Return empty object if no people exist
         return {}
 
-    # Get all items for each person
-    for person_name, color in people:
-        c.execute(
-            "SELECT name, completed FROM items WHERE person_name = ? COLLATE NOCASE",
-            (person_name,),
-        )
-        items = [{"name": item[0], "completed": bool(item[1])} for item in c.fetchall()]
-        result[person_name] = {"items": items, "color": color}
+    with engine.connect() as conn:
+        # Get all items for each person
+        for person_name, color in people:
+            items = conn.execute(
+                text(
+                    """
+                    SELECT name, completed
+                    FROM items
+                    WHERE LOWER(person_name) = LOWER(:person_name)
+                """
+                ),
+                {"person_name": person_name},
+            ).fetchall()
+            result[person_name] = {
+                "items": [{"name": item[0], "completed": bool(item[1])} for item in items],
+                "color": color,
+            }
 
-    conn.close()
     return result
 
 
 @app.post("/people")
 def add_person(name: str = Form(...), color: str = Form(...)):
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
     try:
-        c.execute("INSERT INTO people (name, color) VALUES (?, ?)", (name, color))
-        conn.commit()
+        with engine.begin() as conn:
+            conn.execute(
+                text("INSERT INTO people (name, color) VALUES (:name, :color)"),
+                {"name": name, "color": color},
+            )
         return {"message": f"Person '{name}' added"}
-    except sqlite3.IntegrityError:
+    except IntegrityError:
         raise HTTPException(status_code=400, detail="Person already exists")
-    finally:
-        conn.close()
 
 
 @app.post("/people/{person}/items/{item_name}/complete")
 def toggle_item_completion(person: str, item_name: str):
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    try:
-        # Check if person and item exist
-        c.execute(
-            "SELECT completed FROM items WHERE person_name = ? AND name = ?",
-            (person, item_name),
+    with engine.begin() as conn:
+        result = conn.execute(
+            text(
+                """
+                SELECT completed
+                FROM items
+                WHERE LOWER(person_name) = LOWER(:person) AND name = :item_name
+            """
+            ),
+            {"person": person, "item_name": item_name},
         )
-        result = c.fetchone()
-        if not result:
+        row = result.first()
+        if not row:
             raise HTTPException(status_code=404, detail="Item not found")
 
-        # Toggle the completed status
-        current_status = bool(result[0])
+        current_status = bool(row[0])
         new_status = not current_status
 
-        c.execute(
-            "UPDATE items SET completed = ? WHERE person_name = ? AND name = ?",
-            (new_status, person, item_name),
+        conn.execute(
+            text(
+                """
+                UPDATE items
+                SET completed = :new_status
+                WHERE LOWER(person_name) = LOWER(:person) AND name = :item_name
+            """
+            ),
+            {"new_status": new_status, "person": person, "item_name": item_name},
         )
-        conn.commit()
-        return {"message": "Item completion status updated"}
-    finally:
-        conn.close()
+    return {"message": "Item completion status updated"}
 
 
 @app.post("/people/{person}/items")
 def add_item(person: str, item_name: str = Form(...)):
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    try:
-        c.execute("SELECT name FROM people WHERE name = ?", (person,))
-        if not c.fetchone():
-            raise HTTPException(status_code=404, detail="Person not found")
+    with engine.connect() as conn:
+        person_exists = conn.execute(
+            text("SELECT 1 FROM people WHERE LOWER(name) = LOWER(:person)"),
+            {"person": person},
+        ).first()
 
-        c.execute(
-            "INSERT INTO items (person_name, name) VALUES (?, ?)", (person, item_name)
-        )
-        conn.commit()
+    if not person_exists:
+        raise HTTPException(status_code=404, detail="Person not found")
+
+    try:
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    """
+                    INSERT INTO items (person_name, name)
+                    VALUES (
+                        (SELECT name FROM people WHERE LOWER(name) = LOWER(:person)),
+                        :item_name
+                    )
+                """
+                ),
+                {"person": person, "item_name": item_name},
+            )
         return {"message": "Item added"}
-    except sqlite3.IntegrityError:
+    except IntegrityError:
         raise HTTPException(
             status_code=400, detail="Item already exists for this person"
         )
-    finally:
-        conn.close()
 
 
 @app.delete("/people/{person}/items/{item_name}")
 def delete_item(person: str, item_name: str):
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    try:
-        c.execute("SELECT name FROM people WHERE name = ?", (person,))
-        if not c.fetchone():
-            raise HTTPException(status_code=404, detail="Person not found")
+    with engine.connect() as conn:
+        person_exists = conn.execute(
+            text("SELECT 1 FROM people WHERE LOWER(name) = LOWER(:person)"),
+            {"person": person},
+        ).first()
 
-        c.execute(
-            "DELETE FROM items WHERE person_name = ? AND name = ?", (person, item_name)
-        )
-        conn.commit()
-        if c.rowcount == 0:
+    if not person_exists:
+        raise HTTPException(status_code=404, detail="Person not found")
+
+    with engine.begin() as conn:
+        result = conn.execute(
+            text(
+                """
+                DELETE FROM items
+                WHERE LOWER(person_name) = LOWER(:person) AND name = :item_name
+                RETURNING id
+            """
+            ),
+            {"person": person, "item_name": item_name},
+        ).first()
+
+        if not result:
             raise HTTPException(status_code=404, detail="Item not found")
-        return {"message": "Item deleted"}
-    finally:
-        conn.close()
+
+    return {"message": "Item deleted"}

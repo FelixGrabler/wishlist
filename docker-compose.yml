@@ -1,13 +1,27 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: wishlist-db
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_DB=wishlist
+      - POSTGRES_USER=wishlist
+      - POSTGRES_PASSWORD=wishlist
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - grabler-network
+
   backend:
     build: ./backend
     container_name: wishlist-backend
     ports:
       - "8020:8000"
     environment:
-      - DATABASE_URL=sqlite:///./data/wishlist.db
-    volumes:
-      - ./backend/data:/app/data
+      - DATABASE_URL=postgresql+psycopg://wishlist:wishlist@postgres:5432/wishlist
+    depends_on:
+      - postgres
     networks:
       - grabler-network
 
@@ -24,3 +38,6 @@ services:
 networks:
   grabler-network:
     external: true
+
+volumes:
+  postgres_data:

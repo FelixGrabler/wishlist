@@ -1,7 +1,9 @@
 import os
-import sqlite3
+import time
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import create_engine, text
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
 
 app = FastAPI()
 
@@ -15,39 +17,49 @@ app.add_middleware(
 
 
 # Database configuration
-DB_PATH = os.path.join("data", "wishlist.db")
+DATABASE_URL = os.getenv(
+    "DATABASE_URL", "postgresql+psycopg://wishlist:wishlist@db:5432/wishlist"
+)
+engine = create_engine(DATABASE_URL, future=True, pool_pre_ping=True)
 
 
-# Initialize SQLite database
+# Initialize PostgreSQL database
 def init_db():
-    os.makedirs("data", exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
+    retries = int(os.getenv("DB_INIT_RETRIES", "10"))
+    delay = float(os.getenv("DB_INIT_DELAY_SEC", "1"))
 
-    # Create tables
-    c.execute(
-        """
-        CREATE TABLE IF NOT EXISTS people (
-            name TEXT PRIMARY KEY,
-            color TEXT NOT NULL
-        )
-    """
-    )
-    c.execute(
-        """
-        CREATE TABLE IF NOT EXISTS items (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            person_name TEXT NOT NULL,
-            name TEXT NOT NULL,
-            completed BOOLEAN DEFAULT FALSE,
-            FOREIGN KEY (person_name) REFERENCES people (name) ON DELETE CASCADE,
-            UNIQUE(person_name, name)
-        )
-    """
-    )
-
-    conn.commit()
-    conn.close()
+    for attempt in range(1, retries + 1):
+        try:
+            with engine.begin() as conn:
+                conn.execute(
+                    text(
+                        """
+                        CREATE TABLE IF NOT EXISTS people (
+                            name TEXT PRIMARY KEY,
+                            color TEXT NOT NULL
+                        )
+                    """
+                    )
+                )
+                conn.execute(
+                    text(
+                        """
+                        CREATE TABLE IF NOT EXISTS items (
+                            id SERIAL PRIMARY KEY,
+                            person_name TEXT NOT NULL,
+                            name TEXT NOT NULL,
+                            completed BOOLEAN DEFAULT FALSE,
+                            FOREIGN KEY (person_name) REFERENCES people (name) ON DELETE CASCADE,
+                            UNIQUE(person_name, name)
+                        )
+                    """
+                    )
+                )
+            break
+        except (OperationalError, SQLAlchemyError) as exc:
+            if attempt == retries:
+                raise RuntimeError("Failed to initialize database") from exc
+            time.sleep(delay)
 
 
 init_db()
