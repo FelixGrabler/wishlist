@@ -8,16 +8,36 @@ body {
 #background-video {
   position: fixed;
   right: 0;
+  left: 0;
   bottom: 0;
   min-width: 100%;
   min-height: 100%;
+  object-fit: cover;
+  object-position: right center; /* default to right so desktop keeps its framing */
   z-index: -2;
+}
+
+@media (max-width: 600px) {
+  #background-video {
+    object-position: left center;
+    left: 0; /* ensure alignment to left */
+  }
 }
 
 .content {
   position: relative;
   padding: 20px;
   z-index: 1;
+}
+
+#person-name {
+  display: inline-block;
+  padding: 8px 14px;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 8px;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  font-size: 1.4em;
 }
 
 #wishlist {
@@ -38,6 +58,27 @@ body {
   text-decoration: none;
   background-color: rgba(0, 0, 0, 0.5);
   border-radius: 15px;
+}
+
+/* Pin the "Zurück zur Übersicht" link (root href) to bottom-left of the viewport */
+a.nav-link[href="/"] {
+  position: fixed;
+  left: 12px;
+  bottom: 12px;
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  z-index: 3; /* above floating items */
+  background-color: rgba(0, 0, 0, 0.6);
+}
+
+@media (max-width: 420px) {
+  a.nav-link[href="/"] {
+    left: 8px;
+    bottom: 8px;
+    padding: 7px 10px;
+    font-size: 0.95em;
+  }
 }
 
 #people-grid {
