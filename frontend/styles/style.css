@@ -1,0 +1,137 @@
+body {
+  font-family: Comic Sans MS, sans-serif;
+  text-align: center;
+  margin: 0;
+  overflow-x: hidden;
+}
+
+#background-video {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  min-width: 100%;
+  min-height: 100%;
+  z-index: -2;
+}
+
+.content {
+  position: relative;
+  padding: 20px;
+  z-index: 1;
+}
+
+#wishlist {
+  position: relative;
+  width: 100%;
+  height: 70vh;
+  overflow: hidden;
+  border: 2px dashed #ff7b00;
+  margin-top: 1em;
+  background: transparent;
+}
+
+.nav-link {
+  display: inline-block;
+  margin: 10px;
+  padding: 5px 15px;
+  color: white;
+  text-decoration: none;
+  background-color: rgba(0, 0, 0, 0.5);
+  border-radius: 15px;
+}
+
+#people-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 20px;
+  padding: 20px;
+}
+
+.person-card {
+  padding: 20px;
+  border-radius: 10px;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.person-card button {
+  padding: 8px;
+  border: none;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+}
+
+.item {
+  position: absolute;
+  padding: 24px 40px;
+  border-radius: 36px;
+  color: white;
+  font-size: 2.4em;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  cursor: default;
+  user-select: none;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.delete-button {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1.2em;
+  cursor: pointer;
+}
+
+.item {
+  position: absolute;
+  padding: 24px 40px;
+  border-radius: 36px;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.2s;
+  font-size: 2.4em;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.item:hover {
+  transform: scale(1.1);
+}
+
+section {
+  background: rgba(0, 0, 0, 0.5);
+  padding: 20px;
+  border-radius: 12px;
+  margin: 20px auto;
+  max-width: 600px;
+  color: white;
+}
+
+input,
+select,
+button {
+  margin: 5px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  font-size: 1em;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+button {
+  background: #ff7b00;
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+button:hover {
+  background: #ff9933;
+}

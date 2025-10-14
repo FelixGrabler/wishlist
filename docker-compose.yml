@@ -1,15 +1,17 @@
-version: '3.9'
-
 services:
   backend:
     build: ./backend
     container_name: wishlist-backend
     ports:
-      - "8000:8000"
+      - "8020:8000"
     environment:
       - DATABASE_URL=sqlite:///./wishlist.db
     volumes:
-      - ./backend:/app
+      - ./backend/src:/app/src
+      - ./backend/main.py:/app/main.py
+      - ./backend/wishlist.db:/app/wishlist.db
+    networks:
+      - wishlist-network
 
   frontend:
     build: ./frontend
@@ -18,3 +20,9 @@ services:
       - "8080:80"
     depends_on:
       - backend
+    networks:
+      - wishlist-network
+
+networks:
+  wishlist-network:
+    driver: bridge
