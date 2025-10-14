@@ -27,7 +27,7 @@ def init_db():
     # Create tables
     c.execute(
         """
-        CREATE TABLE people (
+        CREATE TABLE IF NOT EXISTS people (
             name TEXT PRIMARY KEY,
             color TEXT NOT NULL
         )
@@ -35,7 +35,7 @@ def init_db():
     )
     c.execute(
         """
-        CREATE TABLE items (
+        CREATE TABLE IF NOT EXISTS items (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             person_name TEXT NOT NULL,
             name TEXT NOT NULL,
