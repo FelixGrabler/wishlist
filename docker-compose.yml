@@ -5,9 +5,9 @@ services:
     ports:
       - "8020:8000"
     environment:
-      - DATABASE_URL=sqlite:///./wishlist.db
+      - DATABASE_URL=sqlite:///./data/wishlist.db
     volumes:
-      - ./backend/wishlist.db:/app/wishlist.db
+      - ./backend/data:/app/data
     networks:
       - grabler-network
 
