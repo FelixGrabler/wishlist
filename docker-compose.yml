@@ -11,7 +11,7 @@ services:
       - ./backend/main.py:/app/main.py
       - ./backend/wishlist.db:/app/wishlist.db
     networks:
-      - wishlist-network
+      - grabler-network
 
   frontend:
     build: ./frontend
@@ -21,8 +21,8 @@ services:
     depends_on:
       - backend
     networks:
-      - wishlist-network
+      - grabler-network
 
 networks:
-  wishlist-network:
-    driver: bridge
+  grabler-network:
+    external: true

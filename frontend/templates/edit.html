@@ -2,6 +2,7 @@
 <html>
 
 <head>
+  <meta charset="UTF-8">
   <title>Wunschliste bearbeiten</title>
   <link rel="stylesheet" href="/styles/style.css">
 </head>
@@ -17,16 +18,18 @@
   <div class="content">
     <h1 id="person-name">Wunschliste bearbeiten</h1>
     <a href="/" class="nav-link">← Zurück zur Übersicht</a>
-    <a href="#" id="view-link" class="nav-link">Wunschliste anzeigen</a>
+    <a href="#" id="view-link" class="nav-link" target="_blank">Wunschliste anzeigen</a>
 
     <section>
-      <h2>Geschenk hinzufügen</h2>
-      <input type="text" id="item-name" placeholder="Geschenk">
-      <button onclick="addItem()">Geschenk hinzufügen</button>
+      <h2>Wunsch hinzufügen</h2>
+      <div class="add-item">
+        <input type="text" id="item-name" placeholder="Wunsch">
+        <button onclick="addItem()">Hinzufügen</button>
+      </div>
     </section>
 
     <section>
-      <div id="wishlist"></div>
+      <div id="wishlist" class="edit-list"></div>
     </section>
   </div>
 

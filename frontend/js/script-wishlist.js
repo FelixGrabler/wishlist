@@ -1,7 +1,28 @@
 const backend = "/api";
-const wishlistDiv = document.getElementById("wishlist");
+// Use a dedicated container for the public floating layer so edit `#wishlist` stays interactive
+const wishlistDiv =
+  document.getElementById("floating-wishlist") ||
+  document.getElementById("wishlist");
 const personNameHeader = document.getElementById("person-name");
 const backgroundMusic = document.getElementById("background-music");
+
+// Helper: choose readable text color (black or white) based on background hex
+function contrastColor(hex) {
+  if (!hex) return "#000";
+  // Normalize
+  hex = hex.replace("#", "");
+  if (hex.length === 3)
+    hex = hex
+      .split("")
+      .map((c) => c + c)
+      .join("");
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  // Perceived luminance
+  const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return lum > 140 ? "#000" : "#fff";
+}
 
 // Start playing background music when user interacts with the page
 document.addEventListener(
@@ -14,11 +35,19 @@ document.addEventListener(
 
 // Get person name from URL path
 const pathname = window.location.pathname;
-// Only load wishlist if we're on a person's page (not root or edit)
-if (pathname === "/" || pathname.endsWith("/edit")) {
+// Accept /Name or /edit/Name or /Name/edit
+let person = null;
+if (pathname.startsWith("/edit/")) {
+  person = decodeURIComponent(pathname.split("/edit/")[1] || "");
+} else if (pathname.endsWith("/edit")) {
+  person = decodeURIComponent(pathname.slice(1).replace(/\/edit$/, ""));
+} else if (pathname !== "/") {
+  person = decodeURIComponent(pathname.slice(1));
+}
+if (!person) {
+  // Not a person page -> go back to root
   window.location.href = "/";
 }
-const person = decodeURIComponent(pathname.slice(1));
 
 async function loadWishlist() {
   try {
@@ -41,68 +70,31 @@ async function loadWishlist() {
 
     personData.items.forEach((item) => {
       const itemDiv = document.createElement("div");
-      itemDiv.className = "item";
-      itemDiv.style.backgroundColor = personData.color;
-
-      const checkbox = document.createElement("input");
-      checkbox.type = "checkbox";
-      checkbox.checked = item.completed || false;
-
-      const label = document.createElement("span");
-      label.textContent = item.name;
-      if (item.completed) {
-        label.style.textDecoration = "line-through";
-      }
-
-      itemDiv.appendChild(checkbox);
-      itemDiv.appendChild(label);
+      itemDiv.className = "floating-item";
+      const bg = personData.color || "#ddd";
+      itemDiv.style.backgroundColor = bg;
+      itemDiv.style.color = contrastColor(bg);
+      itemDiv.textContent = item.name;
       wishlistDiv.appendChild(itemDiv);
 
-      // Initialize random movement
+      // Initialize random movement inside the container bounds
       const movement = {
-        x: Math.random() * (wishlistDiv.clientWidth - 150),
-        y: Math.random() * (wishlistDiv.clientHeight - 80),
-        speedX: (Math.random() - 0.5) * 400, // Increased speed
-        speedY: (Math.random() - 0.5) * 400, // Increased speed
+        x:
+          Math.random() *
+          Math.max(0, wishlistDiv.clientWidth - itemDiv.offsetWidth),
+        y:
+          Math.random() *
+          Math.max(0, wishlistDiv.clientHeight - itemDiv.offsetHeight),
+        speedX: (Math.random() - 0.5) * 220 * 1.5,
+        speedY: (Math.random() - 0.5) * 220 * 1.5,
         lastUpdate: Date.now(),
+        maxSpeed: 260 * 1.5,
       };
-
+      // ensure the element has an initial transform
+      itemDiv.style.transform = `translate(${movement.x}px, ${movement.y}px)`;
+      // public view items shouldn't capture pointer events
+      itemDiv.style.pointerEvents = "none";
       moveRandomly(itemDiv, movement);
-
-      checkbox.onclick = async (e) => {
-        if (
-          !item.completed &&
-          !confirm("Möchten Sie dieses Geschenk als erledigt markieren?")
-        ) {
-          e.preventDefault();
-          return;
-        }
-        try {
-          await fetch(
-            `${backend}/people/${encodeURIComponent(
-              person
-            )}/items/${encodeURIComponent(item.name)}/complete`,
-            {
-              method: "POST",
-            }
-          );
-          item.completed = !item.completed;
-        } catch (error) {
-          console.error("Error updating item:", error);
-          alert("Fehler beim Aktualisieren des Geschenks");
-          e.preventDefault();
-        }
-      };
-
-      label = document.createElement("span");
-      label.textContent = item.name;
-      if (item.completed) {
-        label.style.textDecoration = "line-through";
-      }
-
-      itemDiv.appendChild(checkbox);
-      itemDiv.appendChild(label);
-      wishlistDiv.appendChild(itemDiv);
     });
   } catch (error) {
     console.error("Error loading wishlist:", error);

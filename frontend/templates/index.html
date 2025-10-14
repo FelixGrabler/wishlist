@@ -3,17 +3,18 @@
 
 <head>
   <meta charset="UTF-8">
-  <title>Fliegende Wunschliste</title>
-  <link rel="stylesheet" href="styles/style.css">
+  <title>Wunschzettel</title>
+  <link rel="stylesheet" href="/styles/style.css">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
 </head>
 
 <body>
   <video autoplay muted loop id="background-video">
-    <source src="assets/christmas.mp4" type="video/mp4">
+    <source src="/assets/christmas.mp4" type="video/mp4">
   </video>
 
-  <audio autoplay loop id="background-music">
-    <source src="assets/christmas.mp3" type="audio/mpeg">
+  <audio id="background-music" loop>
+    <source src="/assets/christmas.mp3" type="audio/mpeg">
   </audio>
 
   <div class="content">
@@ -21,22 +22,20 @@
 
     <section>
       <h2>Person hinzufügen</h2>
-      <input id="person-name" placeholder="Name der Person">
-      <input type="color" id="person-color" value="#ffb347">
-      <button onclick="addPerson()">Hinzufügen</button>
+      <div class="add-person">
+        <input id="person-name" placeholder="Name der Person">
+        <input type="color" id="person-color" value="#1e792c">
+        <button onclick="addPerson()">Hinzufügen</button>
+      </div>
     </section>
 
     <section>
-      <h2>Geschenk hinzufügen</h2>
-      <select id="person-select"></select>
-      <input id="item-name" placeholder="Name des Geschenks">
-      <button onclick="addItem()">Geschenk hinzufügen</button>
+      <h2>Personen</h2>
+      <div id="people-grid" class="people-grid"></div>
     </section>
-
-    <div id="wishlist"></div>
   </div>
 
-  <script src="js/script.js"></script>
+  <script src="/js/script-index.js"></script>
 </body>
 
 </html>
