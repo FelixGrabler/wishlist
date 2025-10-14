@@ -7,8 +7,6 @@ services:
     environment:
       - DATABASE_URL=sqlite:///./wishlist.db
     volumes:
-      - ./backend/src:/app/src
-      - ./backend/main.py:/app/main.py
       - ./backend/wishlist.db:/app/wishlist.db
     networks:
       - grabler-network
