@@ -234,6 +234,36 @@ button:hover {
   background: #ff9933;
 }
 
+.version-badge {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.95em;
+  z-index: 3;
+}
+
+.impressum-link {
+  position: fixed;
+  right: 12px;
+  bottom: 12px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  text-decoration: none;
+  font-weight: 600;
+  z-index: 3;
+}
+
+.impressum-link:hover {
+  background: rgba(0, 0, 0, 0.75);
+}
+
 .floating-item__checkbox {
   width: 32px;
   height: 32px;
