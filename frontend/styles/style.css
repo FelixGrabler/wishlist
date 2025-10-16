@@ -180,7 +180,7 @@ a.nav-link[href="/"] {
   left: 0;
   width: 100%;
   height: 100vh;
-  pointer-events: none; /* allow clicks through to UI */
+  pointer-events: auto;
   background: transparent;
   z-index: 0;
 }
@@ -193,10 +193,13 @@ a.nav-link[href="/"] {
   font-size: 1.95em;
   font-weight: 700;
   user-select: none;
-  pointer-events: none; /* not interactive on the public view */
   white-space: nowrap;
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
   transition: transform 0.15s linear;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  pointer-events: auto;
 }
 
 section {
@@ -229,4 +232,25 @@ button {
 
 button:hover {
   background: #ff9933;
+}
+
+.floating-item__checkbox {
+  width: 32px;
+  height: 32px;
+  accent-color: #2ecc71;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.floating-item__label {
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.floating-item.completed {
+  opacity: 0.7;
+}
+
+.floating-item.completed .floating-item__label {
+  text-decoration: line-through;
 }

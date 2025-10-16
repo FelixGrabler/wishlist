@@ -69,12 +69,27 @@ async function loadWishlist() {
     wishlistDiv.innerHTML = "";
 
     personData.items.forEach((item) => {
-      const itemDiv = document.createElement("div");
+      const itemDiv = document.createElement("label");
       itemDiv.className = "floating-item";
       const bg = personData.color || "#ddd";
       itemDiv.style.backgroundColor = bg;
       itemDiv.style.color = contrastColor(bg);
-      itemDiv.textContent = item.name;
+      itemDiv.classList.toggle("completed", Boolean(item.completed));
+
+      const text = document.createElement("span");
+      text.textContent = item.name;
+      text.className = "floating-item__label";
+      itemDiv.appendChild(text);
+
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.className = "floating-item__checkbox";
+      checkbox.checked = Boolean(item.completed);
+      checkbox.addEventListener("change", () =>
+        updateItemCompletion(item.name, checkbox.checked, checkbox, itemDiv)
+      );
+      itemDiv.appendChild(checkbox);
+
       wishlistDiv.appendChild(itemDiv);
 
       // Initialize random movement inside the container bounds
@@ -92,13 +107,43 @@ async function loadWishlist() {
       };
       // ensure the element has an initial transform
       itemDiv.style.transform = `translate(${movement.x}px, ${movement.y}px)`;
-      // public view items shouldn't capture pointer events
-      itemDiv.style.pointerEvents = "none";
       moveRandomly(itemDiv, movement);
     });
   } catch (error) {
     console.error("Error loading wishlist:", error);
     alert("Fehler beim Laden der Wunschliste");
+  }
+}
+
+async function updateItemCompletion(itemName, completed, checkbox, itemDiv) {
+  try {
+    checkbox.disabled = true;
+    itemDiv.classList.toggle("completed", completed);
+    const response = await fetch(
+      `${backend}/people/${encodeURIComponent(
+        person
+      )}/items/${encodeURIComponent(itemName)}/complete`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ completed }),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Request failed: ${response.status}`);
+    }
+
+    await loadWishlist();
+  } catch (error) {
+    console.error("Error updating completion:", error);
+    alert("Fehler beim Aktualisieren des Status");
+    checkbox.checked = !completed;
+    itemDiv.classList.toggle("completed", !completed);
+  } finally {
+    checkbox.disabled = false;
   }
 }
 

@@ -1,7 +1,8 @@
-from fastapi import Form, HTTPException
+from fastapi import Body, Form, HTTPException
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from main import app, engine
+from typing import Optional
 
 
 @app.get("/people")
@@ -50,7 +51,9 @@ def add_person(name: str = Form(...), color: str = Form(...)):
 
 
 @app.post("/people/{person}/items/{item_name}/complete")
-def toggle_item_completion(person: str, item_name: str):
+def toggle_item_completion(
+    person: str, item_name: str, completed: Optional[bool] = Body(None, embed=True)
+):
     with engine.begin() as conn:
         result = conn.execute(
             text(
@@ -67,7 +70,13 @@ def toggle_item_completion(person: str, item_name: str):
             raise HTTPException(status_code=404, detail="Item not found")
 
         current_status = bool(row[0])
-        new_status = not current_status
+        new_status = not current_status if completed is None else bool(completed)
+
+        if new_status == current_status:
+            return {
+                "message": "Item completion status unchanged",
+                "completed": current_status,
+            }
 
         conn.execute(
             text(
@@ -79,7 +88,7 @@ def toggle_item_completion(person: str, item_name: str):
             ),
             {"new_status": new_status, "person": person, "item_name": item_name},
         )
-    return {"message": "Item completion status updated"}
+    return {"message": "Item completion status updated", "completed": new_status}
 
 
 @app.post("/people/{person}/items")
