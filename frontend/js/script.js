@@ -1,4 +1,4 @@
-const backend = "http://localhost:8020";
+const backend = "/api";
 const wishlistDiv = document.getElementById("wishlist");
 const personSelect = document.getElementById("person-select");
 const backgroundMusic = document.getElementById("background-music");
@@ -33,7 +33,7 @@ async function refreshPeople() {
 
     // Show items for this person
     info.items.forEach((item) =>
-      createFloatingItem(item.name, person, info.color)
+      createFloatingItem(item, person, info.color)
     );
   });
 }
@@ -42,7 +42,7 @@ async function refreshPeople() {
 function showItemsForPerson(items) {
   wishlistDiv.innerHTML = "";
   if (items) {
-    items.forEach((item) => createFloatingItem(item.name));
+    items.forEach((item) => createFloatingItem(item));
   }
 }
 
@@ -75,7 +75,7 @@ window.addItem = async function () {
   if (!person || !item_name) return;
 
   try {
-    await fetch(`${backend}/people/${person}/items`, {
+    await fetch(`${backend}/people/${encodeURIComponent(person)}/items`, {
       method: "POST",
       body: new URLSearchParams({ item_name }),
     });
@@ -87,15 +87,20 @@ window.addItem = async function () {
   }
 };
 
-async function removeItem(itemName, person) {
+async function removeItem(item, person) {
   const confirmed = confirm(
-    `Sind Sie sicher, dass Sie "${itemName}" von der Wunschliste entfernen möchten?`
+    `Sind Sie sicher, dass Sie "${item.name}" von der Wunschliste entfernen möchten?`
   );
   if (!confirmed) return;
 
   try {
+    const useLegacy = item.id === undefined || item.id === null;
+    const identifier = useLegacy ? item.name : item.id;
+    const pathSegment = useLegacy ? "items-by-name" : "items";
     await fetch(
-      `${backend}/people/${person}/items/${encodeURIComponent(itemName)}`,
+      `${backend}/people/${encodeURIComponent(
+        person
+      )}/${pathSegment}/${encodeURIComponent(identifier)}`,
       {
         method: "DELETE",
       }
@@ -107,13 +112,16 @@ async function removeItem(itemName, person) {
   }
 }
 
-function createFloatingItem(name, owner, color) {
+function createFloatingItem(item, owner = "", color) {
   const el = document.createElement("div");
   el.className = "item";
-  el.textContent = `${owner}: ${name}`;
-  el.onclick = () => removeItem(name, owner);
+  const ownerPrefix = owner ? `${owner}: ` : "";
+  el.textContent = `${ownerPrefix}${item.name}`;
+  el.onclick = () => removeItem(item, owner);
   el.title = "Klicken zum Entfernen";
-  el.style.backgroundColor = color;
+  if (color) {
+    el.style.backgroundColor = color;
+  }
   wishlistDiv.appendChild(el);
 
   // Initialize random movement properties

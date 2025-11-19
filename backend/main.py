@@ -49,10 +49,29 @@ def init_db():
                             person_name TEXT NOT NULL,
                             name TEXT NOT NULL,
                             completed BOOLEAN DEFAULT FALSE,
+                            url TEXT,
+                            image TEXT,
                             FOREIGN KEY (person_name) REFERENCES people (name) ON DELETE CASCADE,
                             UNIQUE(person_name, name)
                         )
                     """
+                    )
+                )
+                # Ensure deployments that already created the table receive the URL column
+                conn.execute(
+                    text(
+                        """
+                        ALTER TABLE items
+                        ADD COLUMN IF NOT EXISTS url TEXT
+                        """
+                    )
+                )
+                conn.execute(
+                    text(
+                        """
+                        ALTER TABLE items
+                        ADD COLUMN IF NOT EXISTS image TEXT
+                        """
                     )
                 )
             break

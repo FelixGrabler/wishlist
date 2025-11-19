@@ -25,6 +25,9 @@
       <h2>Wunsch hinzufügen</h2>
       <div class="add-item">
         <input type="text" id="item-name" placeholder="Wunsch">
+        <input type="url" id="item-link" placeholder="Link (optional)">
+        <label for="item-image" class="file-input-label">Bild (optional)</label>
+        <input type="file" id="item-image" accept="image/*">
         <button onclick="addItem()">Hinzufügen</button>
       </div>
     </section>
@@ -32,6 +35,11 @@
     <section>
       <div id="wishlist" class="edit-list"></div>
     </section>
+  </div>
+
+  <div id="image-lightbox" class="image-lightbox" aria-hidden="true">
+    <button id="image-lightbox-close" class="image-lightbox__close" aria-label="Bild schließen">&times;</button>
+    <img id="image-lightbox-img" class="image-lightbox__image" alt="Bildvorschau">
   </div>
 
   <script src="/js/script-edit.js"></script>
