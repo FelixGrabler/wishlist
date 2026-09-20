@@ -7,14 +7,15 @@
   <link rel="stylesheet" href="/styles/style.css">
   <link rel="icon" href="/assets/favicon.ico" />
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <script src="/js/background-video.js" defer></script>
 </head>
 
 <body>
-  <video autoplay muted loop id="background-video">
+  <video autoplay muted loop playsinline poster="/assets/frame.jpg" id="background-video">
     <source src="/assets/christmas.mp4" type="video/mp4">
   </video>
 
-  <div class="version-badge">Version 2.1</div>
+  <div class="version-badge">Version 2.2</div>
 
   <audio id="background-music" loop>
     <source src="/assets/christmas.mp3" type="audio/mpeg">
