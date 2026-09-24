@@ -182,28 +182,21 @@ a.nav-link[href="/"] {
 
 
 
-/* Floating items shown on the public wishlist view */
-.floating-container {
-  /* full viewport container behind the content */
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100vh;
-  overflow: hidden;
-  z-index: 0;
-}
-
-/* Dedicated full-viewport floating layer for the public wishlist view */
+/* Cards bounce at the viewport edges; controls remain in a higher layer. */
 #floating-wishlist {
   position: fixed;
-  top: 0;
-  left: 0;
+  inset: 0;
   width: 100%;
   height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
   pointer-events: auto;
   background: transparent;
   z-index: 0;
+}
+
+.floating-item:is(:hover, :focus-within) {
+  z-index: 2147483647 !important;
 }
 
 .floating-item {
@@ -430,7 +423,6 @@ button:disabled { opacity: 0.6; cursor: wait; }
 .wishlist-item { flex-wrap: wrap; }
 .wishlist-item__content { min-width: 0; }
 .floating-item__image-wrapper { max-width: 100%; }
-#floating-wishlist { top: 160px; height: calc(100dvh - 230px); }
 .public-wishlist .content { pointer-events: none; }
 .public-wishlist .content a { pointer-events: auto; }
 .motion-paused #floating-wishlist {

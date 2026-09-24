@@ -176,3 +176,86 @@ def test_mobile_items_are_compact(page):
     expect(page.locator(".wishlist-item")).to_have_count(4)
     assert page.locator(".wishlist-item__text").first.evaluate("el => el.clientWidth") >= 100
     assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+
+
+@pytest.mark.parametrize("viewport", [{"width": 1280, "height": 900}, {"width": 390, "height": 844}])
+def test_floating_area_reaches_all_viewport_edges(page, viewport):
+    page.set_viewport_size(viewport)
+    page.clock.install(time=1_000_000)
+    page.clock.pause_at(1_001_000)
+    page.route("**/api/people", lambda route: route.fulfill(json={"Edges": {"color": "#123456", "items": [
+        {"id": 1, "name": "Wish", "completed": False, "url": None, "image": None}
+    ]}}))
+    page.goto(f"{BASE}/Edges")
+    expect(page.locator(".floating-item")).to_have_count(1)
+    for size in [viewport, {"width": viewport["height"], "height": viewport["width"]}]:
+        page.set_viewport_size(size)
+        area = page.locator("#floating-wishlist").bounding_box()
+        assert area == {"x": 0, "y": 0, **size}
+        result = page.evaluate("""() => {
+          const el = document.querySelector('.floating-item');
+          el.style.transform = 'translate(100px, 100px)';
+          const width = el.offsetWidth, height = el.offsetHeight;
+          const edges = [
+            {x: -1, y: 100, speedX: -100, speedY: 0},
+            {x: innerWidth - width + 1, y: 100, speedX: 100, speedY: 0},
+            {x: 100, y: -1, speedX: 0, speedY: -100},
+            {x: 100, y: innerHeight - height + 1, speedX: 0, speedY: 100}
+          ];
+          return edges.map(state => {
+            let bounces = 0;
+            moveRandomly(el, {...state, lastUpdate: Date.now(), onBounce: () => bounces++});
+            const rect = el.getBoundingClientRect();
+            return {left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, bounces};
+          });
+        }""")
+        assert result[0]["left"] == 0
+        assert result[1]["right"] == size["width"]
+        assert result[2]["top"] == 0
+        assert result[3]["bottom"] == size["height"]
+        assert all(edge["bounces"] == 1 for edge in result)
+
+
+def test_overlapping_wishes_each_get_a_turn_and_focus_stays_in_front(page):
+    page.clock.install(time=1_000_000)
+    page.clock.pause_at(1_001_000)
+    page.goto(BASE)
+    # Stationary overlapping cards exercise the timer fallback even without bounces.
+    page.evaluate("""() => {
+      document.body.classList.add('public-wishlist');
+      const container = document.createElement('div');
+      container.id = 'floating-wishlist';
+      for (let i = 0; i < 3; i++) {
+        const item = document.createElement('div');
+        item.className = 'floating-item';
+        item.id = `layer-test-${i}`;
+        item.style.transform = 'translate(200px, 250px)';
+        item.innerHTML = `<label>Wish ${i}<input type="checkbox"></label>`;
+        container.append(item);
+      }
+      document.body.append(container);
+      window.testBounce = cycleFloatingLayers(container);
+    }""")
+    top_item = "document.elementFromPoint(220, 275).closest('.floating-item').id"
+    seen = {page.evaluate(top_item)}
+    for _ in range(2):
+        page.clock.run_for(5100)
+        seen.add(page.evaluate(top_item))
+    assert len(seen) == 3
+    before = page.evaluate(top_item)
+    page.clock.run_for(3100)
+    page.evaluate("testBounce()")
+    assert page.evaluate(top_item) != before
+    before = page.evaluate(top_item)
+    page.evaluate("testBounce()")
+    assert page.evaluate(top_item) == before  # No rapid reshuffling on repeated bounces.
+    page.locator("#layer-test-0 input").focus()
+    page.clock.run_for(6000)
+    assert page.evaluate(top_item) == "layer-test-0"
+    page.evaluate("document.activeElement.blur()")
+    page.mouse.move(220, 275)
+    hovered = page.evaluate(top_item)
+    page.clock.run_for(6000)
+    assert page.evaluate(top_item) == hovered
+    # The floating stacking context cannot cover the music control.
+    assert page.evaluate("document.elementFromPoint(30, 30).closest('button').id") == "music-toggle"

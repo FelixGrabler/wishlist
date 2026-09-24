@@ -33,7 +33,10 @@ The supplied database credentials are development defaults.
   or check **Vorhandenes Bild entfernen**. Uploads accept PNG, JPEG, GIF and WebP
   up to 5 MB. Links must use HTTP or HTTPS.
 - Public wishlists show completion checkboxes. Floating wishes stop while hovered
-  or focused. Mobile cards use about half the previous width, with smaller pictures.
+  or focused. They use the full viewport without top/bottom bounce padding.
+  Border bounces rotate wishes to the front (at most once every three seconds),
+  with a five-second fallback so every wish gets a turn. Hovered/focused wishes
+  stay in front during interaction. Mobile cards use about half the previous width, with smaller pictures.
   The app respects the device’s reduced-motion preference without a motion button.
 - Music is enabled by default. Browsers that block audible autoplay start it on the
   first interaction. The speaker icon at the top left toggles music and remembers

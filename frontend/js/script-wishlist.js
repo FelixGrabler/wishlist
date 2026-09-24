@@ -46,6 +46,7 @@ window.pageInitializers.wishlist = function (pageRoot) {
         empty.textContent = "Noch keine Wünsche vorhanden.";
         wishlistDiv.appendChild(empty);
       }
+      let advanceLayers = () => {};
       personData.items.forEach((item) => {
         const itemDiv = document.createElement("div");
         itemDiv.className = "floating-item";
@@ -143,11 +144,13 @@ window.pageInitializers.wishlist = function (pageRoot) {
           speedY: (Math.random() - 0.5) * 220 * 1.5,
           lastUpdate: Date.now(),
           maxSpeed: 260 * 1.5,
+          onBounce: () => advanceLayers(),
         };
         // ensure the element has an initial transform
         itemDiv.style.transform = `translate(${movement.x}px, ${movement.y}px)`;
         moveRandomly(itemDiv, movement);
       });
+      advanceLayers = cycleFloatingLayers(wishlistDiv);
     } catch (error) {
       console.error("Error loading wishlist:", error);
       reportError(error);
