@@ -123,6 +123,23 @@ def add_person(name: str = Form(...), color: str = Form(...)):
         raise HTTPException(status_code=400, detail="Person already exists")
 
 
+@router.delete("/people/{person}")
+def delete_person(person: str):
+    with engine.begin() as conn:
+        # The parent row lock also blocks concurrent inserts through the FK.
+        # Check items after acquiring it so no wish can be silently cascaded away.
+        owner = conn.execute(text(
+            "SELECT name FROM people WHERE LOWER(name) = LOWER(:person) FOR UPDATE"
+        ), {"person": person}).first()
+        if owner is None:
+            raise HTTPException(404, "Person nicht gefunden.")
+        if conn.execute(text("SELECT 1 FROM items WHERE person_name = :person LIMIT 1"),
+                        {"person": owner[0]}).first():
+            raise HTTPException(409, "Bitte zuerst alle Wünsche dieser Person entfernen.")
+        conn.execute(text("DELETE FROM people WHERE name = :person"), {"person": owner[0]})
+    return {"message": "Person gelöscht"}
+
+
 @router.post("/people/{person}/items/{item_id}/complete")
 def toggle_item_completion(
     person: str, item_id: int, completed: Optional[bool] = Body(None, embed=True)

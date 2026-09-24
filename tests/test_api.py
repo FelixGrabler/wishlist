@@ -105,3 +105,34 @@ def test_image_above_default_form_limit_round_trips(client):
     response = client.post("/people/Anna/items", data={"item_name": "Picture", "item_image": image})
     assert response.status_code == 200
     assert client.get("/people").json()["Anna"]["items"][0]["image"] == image
+
+
+def test_delete_person_requires_empty_wishlist(client):
+    person(client)
+    person(client, "Ben")
+    item_id = add(client)
+    assert client.delete("/people/Anna").status_code == 409
+    client.post(f"/people/Anna/items/{item_id}/complete", json={"completed": True})
+    assert client.delete("/people/anna").status_code == 409
+    assert len(client.get("/people").json()["Anna"]["items"]) == 1
+    client.delete(f"/people/Anna/items/{item_id}")
+    assert client.delete("/people/anna").status_code == 200
+    assert set(client.get("/people").json()) == {"Ben"}
+    assert client.delete("/people/Anna").status_code == 404
+
+
+def test_person_delete_waits_for_pending_item_insert(client):
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError
+    person(client)
+    with engine.connect() as conn:
+        transaction = conn.begin()
+        conn.execute(text("INSERT INTO items (person_name, name) VALUES ('Anna', 'Pending')"))
+        with ThreadPoolExecutor() as executor:
+            deletion = executor.submit(client.delete, "/people/Anna")
+            try:
+                with pytest.raises(TimeoutError):
+                    deletion.result(timeout=0.2)
+            finally:
+                transaction.commit()
+            assert deletion.result(timeout=5).status_code == 409
+    assert client.get("/people").json()["Anna"]["items"][0]["name"] == "Pending"

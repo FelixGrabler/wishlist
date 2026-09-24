@@ -14,30 +14,40 @@
   <video muted playsinline preload="auto" aria-hidden="true" poster="/assets/frame.jpg" id="background-video">
     <source src="/assets/christmas.mp4" type="video/mp4">
   </video>
-  <audio id="background-music" loop preload="none">
+  <audio id="background-music" loop preload="auto">
     <source src="/assets/christmas.mp3" type="audio/mpeg">
   </audio>
 
   <div class="media-controls">
-    <button id="music-toggle" aria-pressed="false">Musik einschalten</button>
-    <button id="motion-toggle" aria-pressed="false">Bewegung pausieren</button>
+    <button id="music-toggle" class="icon-button" aria-label="Musik ausschalten" title="Musik ausschalten" aria-pressed="true">
+      <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M11 5 6 9H3v6h3l5 4Z" />
+        <path class="sound-on" d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14" />
+        <path class="sound-off" d="m16 9 6 6m0-6-6 6" hidden />
+      </svg>
+    </button>
   </div>
-  <div class="content">
-    <p id="status" role="alert"></p>
-    <h1 id="person-name">Wunschliste</h1>
-    <a href="/" class="nav-link">← Zurück zur Übersicht</a>
-  </div>
+  <main id="page" data-page="wishlist">
+    <div class="content">
+      <p id="status" role="alert"></p>
+      <h1 id="person-name">Wunschliste</h1>
+      <a href="/" class="nav-link">← Zurück zur Übersicht</a>
+    </div>
 
-  <div id="floating-wishlist" class="floating-container"></div>
+    <div id="floating-wishlist" class="floating-container"></div>
 
-  <dialog id="image-lightbox" class="image-lightbox" aria-label="Bildvorschau">
-    <button id="image-lightbox-close" class="image-lightbox__close" aria-label="Bild schließen">&times;</button>
-    <img id="image-lightbox-img" class="image-lightbox__image" alt="Bildvorschau">
-  </dialog>
+    <dialog id="image-lightbox" class="image-lightbox" aria-label="Bildvorschau">
+      <button id="image-lightbox-close" class="image-lightbox__close" aria-label="Bild schließen">&times;</button>
+      <img id="image-lightbox-img" class="image-lightbox__image" alt="Bildvorschau">
+    </dialog>
 
-  <script src="/js/move-random.js"></script>
+  </main>
   <script src="/js/common.js"></script>
+  <script src="/js/move-random.js"></script>
+  <script src="/js/script-index.js"></script>
+  <script src="/js/script-edit.js"></script>
   <script src="/js/script-wishlist.js"></script>
+  <script src="/js/navigation.js"></script>
 </body>
 
 </html>

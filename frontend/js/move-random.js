@@ -14,7 +14,7 @@ function moveRandomly(el, movement) {
   movement.y += movement.speedY * deltaTime;
 
   const bounds = el.getBoundingClientRect();
-  const containerBounds = wishlistDiv.getBoundingClientRect();
+  const containerBounds = el.parentElement.getBoundingClientRect();
 
   // Bounce on X
   if (movement.x <= 0) {

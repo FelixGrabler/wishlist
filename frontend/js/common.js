@@ -10,8 +10,8 @@ async function api(path, options) {
   return response.json();
 }
 
-function showError(error) {
-  const status = document.getElementById("status");
+function showError(error, root = document) {
+  const status = root.querySelector("#status");
   status.textContent = error.message || "Verbindung fehlgeschlagen. Bitte erneut versuchen.";
 }
 
@@ -40,31 +40,53 @@ function openImagePreview(src, alt) {
   dialog.showModal();
 }
 
-const lightbox = document.getElementById("image-lightbox");
-document.getElementById("image-lightbox-close")?.addEventListener("click", () => lightbox.close());
-lightbox?.addEventListener("click", event => { if (event.target === lightbox) lightbox.close(); });
-lightbox?.addEventListener("close", () => document.getElementById("image-lightbox-img").removeAttribute("src"));
+window.pageInitializers = {};
+
+function initializePage(root) {
+  const lightbox = root.querySelector("#image-lightbox");
+  root.querySelector("#image-lightbox-close")?.addEventListener("click", () => lightbox.close());
+  lightbox?.addEventListener("click", event => { if (event.target === lightbox) lightbox.close(); });
+  lightbox?.addEventListener("close", () => root.querySelector("#image-lightbox-img").removeAttribute("src"));
+  return window.pageInitializers[root.dataset.page](root);
+}
 
 const music = document.getElementById("background-music");
 const musicButton = document.getElementById("music-toggle");
-musicButton.addEventListener("click", async () => {
-  try {
-    if (music.paused) await music.play(); else music.pause();
-    musicButton.textContent = music.paused ? "Musik einschalten" : "Musik ausschalten";
-    musicButton.setAttribute("aria-pressed", String(!music.paused));
-  } catch { showError(new Error("Musik konnte nicht abgespielt werden.")); }
-});
+let musicEnabled = true;
+try { musicEnabled = localStorage.getItem("wishlist-music") !== "off"; } catch { /* Storage can be unavailable. */ }
 
+function updateMusicButton() {
+  const label = musicEnabled ? "Musik ausschalten" : "Musik einschalten";
+  musicButton.setAttribute("aria-label", label);
+  musicButton.title = label;
+  musicButton.setAttribute("aria-pressed", String(musicEnabled));
+  musicButton.querySelector(".sound-on").toggleAttribute("hidden", !musicEnabled);
+  musicButton.querySelector(".sound-off").toggleAttribute("hidden", musicEnabled);
+}
+
+function startMusic() {
+  if (musicEnabled && music.paused) {
+    // Browsers can block audible autoplay until a user gesture. Retry on interaction.
+    music.play().then(() => { if (!musicEnabled) music.pause(); }).catch(() => {});
+  }
+}
+musicButton.addEventListener("click", () => {
+  musicEnabled = !musicEnabled;
+  try { localStorage.setItem("wishlist-music", musicEnabled ? "on" : "off"); } catch { /* Optional preference storage. */ }
+  updateMusicButton();
+  if (musicEnabled) startMusic(); else music.pause();
+});
+document.addEventListener("pointerdown", startMusic, { passive: true });
+document.addEventListener("keydown", startMusic);
+updateMusicButton();
+startMusic();
+
+// Respect the device preference without offering a separate motion control.
 const motionPreference = matchMedia("(prefers-reduced-motion: reduce)");
-window.motionPaused = motionPreference.matches;
-const motionButton = document.getElementById("motion-toggle");
-function setMotion(paused) {
-  window.motionPaused = paused;
-  document.body.classList.toggle("motion-paused", paused);
-  motionButton.textContent = paused ? "Bewegung einschalten" : "Bewegung pausieren";
-  motionButton.setAttribute("aria-pressed", String(paused));
+function setMotionPreference() {
+  window.motionPaused = motionPreference.matches;
+  document.body.classList.toggle("motion-paused", window.motionPaused);
   window.dispatchEvent(new Event("motionchange"));
 }
-motionButton.addEventListener("click", () => setMotion(!window.motionPaused));
-motionPreference.addEventListener("change", event => setMotion(event.matches));
-setMotion(window.motionPaused);
+motionPreference.addEventListener("change", setMotionPreference);
+setMotionPreference();

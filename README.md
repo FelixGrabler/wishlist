@@ -33,10 +33,17 @@ The supplied database credentials are development defaults.
   or check **Vorhandenes Bild entfernen**. Uploads accept PNG, JPEG, GIF and WebP
   up to 5 MB. Links must use HTTP or HTTPS.
 - Public wishlists show completion checkboxes. Floating wishes stop while hovered
-  or focused. **Bewegung pausieren** switches to a stationary, wrapping list and
-  pauses the background video. The app respects reduced-motion preferences.
-- Music starts only through **Musik einschalten**. Image previews support keyboard
-  navigation, Escape to close, and focus restoration.
+  or focused. Mobile cards use about half the previous width, with smaller pictures.
+  The app respects the device’s reduced-motion preference without a motion button.
+- Music is enabled by default. Browsers that block audible autoplay start it on the
+  first interaction. The speaker icon at the top left toggles music and remembers
+  the preference. Internal navigation and browser Back/Forward retain the same
+  audio player, so the track continues uninterrupted. External sites and full page
+  reloads leave the current player. Links open in the same tab by default.
+- In the editor, the settings icon at the top right opens **Person löschen?**.
+  Deletion is available only when the wishlist is empty, followed by a second
+  confirmation. The API also enforces this rule, including concurrent item creation.
+- Image previews support keyboard navigation, Escape to close, and focus restoration.
 
 ## Structure
 
@@ -45,6 +52,8 @@ The supplied database credentials are development defaults.
 - `backend/main.py`: application lifespan and router registration.
 - `frontend/templates`: overview, editor, and public wishlist pages.
 - `frontend/js/common.js`: requests, error reporting, previews, and media controls.
+- `frontend/js/navigation.js`: content navigation while retaining the media player;
+  page scripts initialize within the current page root.
 - `frontend/js/background-video.js`: two video elements overlap for a one-second
   crossfade. The outgoing frame stays visible until the incoming video is ready.
 - `tests`: PostgreSQL integration tests and Chromium browser tests.
@@ -82,7 +91,9 @@ WISHLIST_TEST_URL=http://localhost:8080 .venv/bin/pytest -q tests/test_browser.p
 The API suite covers editing without changing identity or completion, duplicate
 rollback, ownership boundaries, input validation, image size limits, and deletion.
 The browser suite covers editing and failed-save recovery, completion persistence,
-repeated video transitions, mobile layout, and keyboard image previews.
+repeated video transitions, mobile layout, keyboard image previews, continuous
+music across navigation/history, and person deletion dialogs. API tests also check
+that deletion cannot remove a person whose wishlist contains a concurrently added item.
 
 After testing, remove the temporary database:
 
