@@ -1,19 +1,6 @@
-const backend = "/api";
 const peopleGrid = document.getElementById("people-grid");
-const backgroundMusic = document.getElementById("background-music");
-
-// Start playing background music when user interacts with the page
-document.addEventListener(
-  "click",
-  () => {
-    backgroundMusic.play().catch(console.error);
-  },
-  { once: true }
-);
-
 async function refreshPeople() {
-  const res = await fetch(`${backend}/people`);
-  const data = await res.json();
+  const data = await api("/people");
   peopleGrid.innerHTML = "";
 
   const names = Object.keys(data || {});
@@ -32,22 +19,6 @@ async function refreshPeople() {
     personCard.className = "person-card";
     const bg = info.color || "#ccc";
     personCard.style.backgroundColor = bg;
-
-    // compute readable text color
-    function contrastColor(hex) {
-      if (!hex) return "#000";
-      hex = hex.replace("#", "");
-      if (hex.length === 3)
-        hex = hex
-          .split("")
-          .map((c) => c + c)
-          .join("");
-      const r = parseInt(hex.slice(0, 2), 16);
-      const g = parseInt(hex.slice(2, 4), 16);
-      const b = parseInt(hex.slice(4, 6), 16);
-      const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-      return lum > 140 ? "#000" : "#fff";
-    }
 
     const name = document.createElement("h3");
     name.textContent = person;
@@ -76,7 +47,10 @@ async function refreshPeople() {
   });
 }
 
-window.addPerson = async function () {
+document.getElementById("person-form").addEventListener("submit", async event => {
+  event.preventDefault();
+  const button = event.submitter || event.currentTarget.querySelector("button[type=submit]");
+  if (button.disabled) return;
   const nameInput = document.getElementById("person-name");
   const colorInput = document.getElementById("person-color");
   const name = nameInput.value.trim();
@@ -85,7 +59,9 @@ window.addPerson = async function () {
   if (!name) return;
 
   try {
-    await fetch(`${backend}/people`, {
+    button.disabled = true;
+    document.getElementById("status").textContent = "";
+    await api("/people", {
       method: "POST",
       body: new URLSearchParams({ name, color }),
     });
@@ -93,8 +69,8 @@ window.addPerson = async function () {
     await refreshPeople();
   } catch (error) {
     console.error("Error adding person:", error);
-    alert("Fehler beim Hinzufügen der Person");
-  }
-};
+    showError(error);
+  } finally { button.disabled = false; }
+});
 
-refreshPeople();
+refreshPeople().catch(showError);

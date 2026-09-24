@@ -1,2 +1,5 @@
-backend/__pycache__/main.cpython-312.pyc
-backend/data/wishlist.db
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+backend/data/

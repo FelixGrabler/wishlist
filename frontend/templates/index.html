@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="de">
 
 <head>
   <meta charset="UTF-8">
@@ -11,26 +11,31 @@
 </head>
 
 <body>
-  <video autoplay muted loop playsinline poster="/assets/frame.jpg" id="background-video">
+  <video muted playsinline preload="auto" aria-hidden="true" poster="/assets/frame.jpg" id="background-video">
     <source src="/assets/christmas.mp4" type="video/mp4">
   </video>
 
-  <div class="version-badge">Version 2.2</div>
 
-  <audio id="background-music" loop>
+
+  <audio id="background-music" loop preload="none">
     <source src="/assets/christmas.mp3" type="audio/mpeg">
   </audio>
 
+  <div class="media-controls">
+    <button id="music-toggle" aria-pressed="false">Musik einschalten</button>
+    <button id="motion-toggle" aria-pressed="false">Bewegung pausieren</button>
+  </div>
   <div class="content">
+    <p id="status" role="alert"></p>
     <h1>🎁 Fliegende Wunschliste</h1>
 
     <section>
       <h2>Person hinzufügen</h2>
-      <div class="add-person">
-        <input id="person-name" placeholder="Name der Person">
-        <input type="color" id="person-color" value="#1e792c">
-        <button onclick="addPerson()">Hinzufügen</button>
-      </div>
+      <form class="add-person" id="person-form">
+        <input id="person-name" placeholder="Name der Person" aria-label="Name der Person" required maxlength="200">
+        <input type="color" aria-label="Farbe" id="person-color" value="#1e792c">
+        <button type="submit">Hinzufügen</button>
+      </form>
     </section>
 
     <section>
@@ -41,6 +46,7 @@
 
   <a class="impressum-link" href="https://grabler.me" target="_blank" rel="noopener">Impressum</a>
 
+  <script src="/js/common.js"></script>
   <script src="/js/script-index.js"></script>
 </body>
 

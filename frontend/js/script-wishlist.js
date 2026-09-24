@@ -1,74 +1,5 @@
-const backend = "/api";
-// Use a dedicated container for the public floating layer so edit `#wishlist` stays interactive
-const wishlistDiv =
-  document.getElementById("floating-wishlist") ||
-  document.getElementById("wishlist");
+const wishlistDiv = document.getElementById("floating-wishlist") || document.getElementById("wishlist");
 const personNameHeader = document.getElementById("person-name");
-const backgroundMusic = document.getElementById("background-music");
-const imageLightbox = document.getElementById("image-lightbox");
-const imageLightboxImg = document.getElementById("image-lightbox-img");
-const imageLightboxClose = document.getElementById("image-lightbox-close");
-
-// Helper: choose readable text color (black or white) based on background hex
-function contrastColor(hex) {
-  if (!hex) return "#000";
-  // Normalize
-  hex = hex.replace("#", "");
-  if (hex.length === 3)
-    hex = hex
-      .split("")
-      .map((c) => c + c)
-      .join("");
-  const r = parseInt(hex.slice(0, 2), 16);
-  const g = parseInt(hex.slice(2, 4), 16);
-  const b = parseInt(hex.slice(4, 6), 16);
-  // Perceived luminance
-  const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  return lum > 140 ? "#000" : "#fff";
-}
-
-// Start playing background music when user interacts with the page
-document.addEventListener(
-  "click",
-  () => {
-    backgroundMusic.play().catch(console.error);
-  },
-  { once: true }
-);
-
-function openImagePreview(src, alt) {
-  if (!imageLightbox || !imageLightboxImg || !src) return;
-  imageLightboxImg.src = src;
-  imageLightboxImg.alt = alt || "Bildvorschau";
-  imageLightbox.classList.add("visible");
-  imageLightbox.setAttribute("aria-hidden", "false");
-  document.body.classList.add("modal-open");
-}
-
-function closeImagePreview() {
-  if (!imageLightbox || !imageLightboxImg) return;
-  imageLightbox.classList.remove("visible");
-  imageLightbox.setAttribute("aria-hidden", "true");
-  imageLightboxImg.src = "";
-  document.body.classList.remove("modal-open");
-}
-
-if (imageLightbox) {
-  imageLightbox.addEventListener("click", (event) => {
-    if (event.target === imageLightbox) {
-      closeImagePreview();
-    }
-  });
-}
-
-imageLightboxClose?.addEventListener("click", closeImagePreview);
-
-document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && imageLightbox?.classList.contains("visible")) {
-    closeImagePreview();
-  }
-});
-
 // Get person name from URL path
 const pathname = window.location.pathname;
 // Accept /Name or /edit/Name or /Name/edit
@@ -87,8 +18,7 @@ if (!person) {
 
 async function loadWishlist() {
   try {
-    const res = await fetch(`${backend}/people`);
-    const data = await res.json();
+    const data = await api("/people");
     // Case-insensitive person lookup
     const personName = Object.keys(data).find(
       (name) => name.toLowerCase() === person.toLowerCase()
@@ -106,6 +36,12 @@ async function loadWishlist() {
     personNameHeader.textContent = `Wunschliste von ${displayName}`;
     wishlistDiv.innerHTML = "";
 
+    if (!personData.items.length) {
+      const empty = document.createElement("p");
+      empty.className = "empty-state";
+      empty.textContent = "Noch keine Wünsche vorhanden.";
+      wishlistDiv.appendChild(empty);
+    }
     personData.items.forEach((item) => {
       const itemDiv = document.createElement("div");
       itemDiv.className = "floating-item";
@@ -133,6 +69,15 @@ async function loadWishlist() {
         };
         imageWrapper.addEventListener("click", openPreview);
         imageEl.addEventListener("click", openPreview);
+        imageWrapper.tabIndex = 0;
+        imageWrapper.setAttribute("role", "button");
+        imageWrapper.setAttribute("aria-label", `${item.name}: Bild vergrößern`);
+        imageWrapper.addEventListener("keydown", event => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            openImagePreview(item.image, item.name);
+          }
+        });
         imageWrapper.appendChild(imageEl);
         itemDiv.appendChild(imageWrapper);
       }
@@ -143,7 +88,7 @@ async function loadWishlist() {
       const textWrapper = document.createElement("span");
       textWrapper.className = "floating-item__label";
 
-      const link = (item.url || "").trim();
+      const link = safeLink(item.url);
       const text = document.createElement(link ? "a" : "span");
       text.textContent = item.name;
       text.className = "floating-item__text";
@@ -158,6 +103,7 @@ async function loadWishlist() {
 
       const checkbox = document.createElement("input");
       checkbox.type = "checkbox";
+      checkbox.setAttribute("aria-label", `${item.name} erledigt`);
       checkbox.className = "floating-item__checkbox";
       checkbox.checked = Boolean(item.completed);
       checkbox.addEventListener("change", () =>
@@ -201,7 +147,7 @@ async function loadWishlist() {
     });
   } catch (error) {
     console.error("Error loading wishlist:", error);
-    alert("Fehler beim Laden der Wunschliste");
+    showError(error);
   }
 }
 
@@ -216,8 +162,8 @@ async function updateItemCompletion(itemId, completed, checkbox, itemDiv) {
     checkbox.disabled = true;
     itemDiv.classList.toggle("completed", completed);
     const pathSegment = legacy ? "items-by-name" : "items";
-    const response = await fetch(
-      `${backend}/people/${encodeURIComponent(
+    const response = await api(
+      `/people/${encodeURIComponent(
         person
       )}/${pathSegment}/${encodeURIComponent(resolvedIdentifier)}/complete`,
       {
@@ -229,14 +175,11 @@ async function updateItemCompletion(itemId, completed, checkbox, itemDiv) {
       }
     );
 
-    if (!response.ok) {
-      throw new Error(`Request failed: ${response.status}`);
-    }
-
-    await loadWishlist();
+    checkbox.checked = response.completed;
+    itemDiv.classList.toggle("completed", response.completed);
   } catch (error) {
     console.error("Error updating completion:", error);
-    alert("Fehler beim Aktualisieren des Status");
+    showError(error);
     checkbox.checked = !completed;
     itemDiv.classList.toggle("completed", !completed);
   } finally {

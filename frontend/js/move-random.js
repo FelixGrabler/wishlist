@@ -1,7 +1,13 @@
 function moveRandomly(el, movement) {
+  if (!el.isConnected) return;
   const now = Date.now();
-  const deltaTime = (now - movement.lastUpdate) / 1000; // seconds
+  const deltaTime = Math.min((now - movement.lastUpdate) / 1000, 0.05); // seconds
   movement.lastUpdate = now;
+
+  if (window.motionPaused || document.hidden || el.matches(":hover, :focus-within") || document.querySelector("dialog[open]")) {
+    requestAnimationFrame(() => moveRandomly(el, movement));
+    return;
+  }
 
   // Apply velocity
   movement.x += movement.speedX * deltaTime;

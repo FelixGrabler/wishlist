@@ -1,8 +1,9 @@
 <!DOCTYPE html>
-<html>
+<html lang="de">
 
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Wunschliste bearbeiten</title>
   <link rel="stylesheet" href="/styles/style.css">
   <link rel="icon" href="/assets/favicon.ico" />
@@ -10,27 +11,35 @@
 </head>
 
 <body>
-  <video autoplay muted loop playsinline poster="/assets/frame.jpg" id="background-video">
+  <video muted playsinline preload="auto" aria-hidden="true" poster="/assets/frame.jpg" id="background-video">
     <source src="/assets/christmas.mp4" type="video/mp4">
   </video>
-  <audio id="background-music" loop>
+  <audio id="background-music" loop preload="none">
     <source src="/assets/christmas.mp3" type="audio/mpeg">
   </audio>
 
+  <div class="media-controls">
+    <button id="music-toggle" aria-pressed="false">Musik einschalten</button>
+    <button id="motion-toggle" aria-pressed="false">Bewegung pausieren</button>
+  </div>
   <div class="content">
+    <p id="status" role="alert"></p>
     <h1 id="person-name">Wunschliste bearbeiten</h1>
     <a href="/" class="nav-link">← Zurück zur Übersicht</a>
-    <a href="#" id="view-link" class="nav-link" target="_blank">Wunschliste anzeigen</a>
+    <a href="#" id="view-link" class="nav-link" target="_blank" rel="noopener noreferrer">Wunschliste anzeigen</a>
 
     <section>
-      <h2>Wunsch hinzufügen</h2>
-      <div class="add-item">
-        <input type="text" id="item-name" placeholder="Wunsch">
-        <input type="url" id="item-link" placeholder="Link (optional)">
+      <h2 id="form-heading">Wunsch hinzufügen</h2>
+      <form class="add-item" id="item-form">
+        <input type="text" id="item-name" placeholder="Wunsch" aria-label="Wunsch" required maxlength="200">
+        <input type="url" id="item-link" placeholder="Link (optional)" aria-label="Link (optional)" maxlength="2048">
         <label for="item-image" class="file-input-label">Bild (optional)</label>
-        <input type="file" id="item-image" accept="image/*">
-        <button onclick="addItem()">Hinzufügen</button>
-      </div>
+        <input type="file" id="item-image" accept="image/png,image/jpeg,image/gif,image/webp">
+        <p>PNG, JPEG, GIF oder WebP, maximal 5 MB.</p>
+        <label id="remove-image-label" hidden><input type="checkbox" id="remove-image">Vorhandenes Bild entfernen</label>
+        <button type="submit" id="save-item">Hinzufügen</button>
+        <button type="button" id="cancel-edit" hidden>Abbrechen</button>
+      </form>
     </section>
 
     <section>
@@ -38,11 +47,12 @@
     </section>
   </div>
 
-  <div id="image-lightbox" class="image-lightbox" aria-hidden="true">
+  <dialog id="image-lightbox" class="image-lightbox" aria-label="Bildvorschau">
     <button id="image-lightbox-close" class="image-lightbox__close" aria-label="Bild schließen">&times;</button>
     <img id="image-lightbox-img" class="image-lightbox__image" alt="Bildvorschau">
-  </div>
+  </dialog>
 
+  <script src="/js/common.js"></script>
   <script src="/js/script-edit.js"></script>
 </body>
 

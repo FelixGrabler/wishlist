@@ -1,69 +1,6 @@
-const backend = "/api";
-const wishlistDiv = document.getElementById("wishlist");
+const wishlistDiv = document.getElementById("floating-wishlist") || document.getElementById("wishlist");
 const personNameHeader = document.getElementById("person-name");
 const viewLink = document.getElementById("view-link");
-const backgroundMusic = document.getElementById("background-music");
-const imageLightbox = document.getElementById("image-lightbox");
-const imageLightboxImg = document.getElementById("image-lightbox-img");
-const imageLightboxClose = document.getElementById("image-lightbox-close");
-
-function contrastColor(hex) {
-  if (!hex) return "#000";
-  hex = hex.replace("#", "");
-  if (hex.length === 3)
-    hex = hex
-      .split("")
-      .map((c) => c + c)
-      .join("");
-  const r = parseInt(hex.slice(0, 2), 16);
-  const g = parseInt(hex.slice(2, 4), 16);
-  const b = parseInt(hex.slice(4, 6), 16);
-  const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  return lum > 140 ? "#000" : "#fff";
-}
-
-// Start playing background music when user interacts with the page
-document.addEventListener(
-  "click",
-  () => {
-    backgroundMusic.play().catch(console.error);
-  },
-  { once: true }
-);
-
-function openImagePreview(src, alt) {
-  if (!imageLightbox || !imageLightboxImg || !src) return;
-  imageLightboxImg.src = src;
-  imageLightboxImg.alt = alt || "Bildvorschau";
-  imageLightbox.classList.add("visible");
-  imageLightbox.setAttribute("aria-hidden", "false");
-  document.body.classList.add("modal-open");
-}
-
-function closeImagePreview() {
-  if (!imageLightbox || !imageLightboxImg) return;
-  imageLightbox.classList.remove("visible");
-  imageLightbox.setAttribute("aria-hidden", "true");
-  imageLightboxImg.src = "";
-  document.body.classList.remove("modal-open");
-}
-
-if (imageLightbox) {
-  imageLightbox.addEventListener("click", (event) => {
-    if (event.target === imageLightbox) {
-      closeImagePreview();
-    }
-  });
-}
-
-imageLightboxClose?.addEventListener("click", closeImagePreview);
-
-document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && imageLightbox?.classList.contains("visible")) {
-    closeImagePreview();
-  }
-});
-
 // Get person name from URL path (support both /edit/Name and /Name/edit)
 let person = null;
 const pathname = window.location.pathname;
@@ -84,8 +21,7 @@ viewLink.target = "_blank";
 
 async function loadWishlist() {
   try {
-    const res = await fetch(`${backend}/people`);
-    const data = await res.json();
+    const data = await api("/people");
     // case-insensitive lookup
     const personKey = Object.keys(data).find(
       (k) => k.toLowerCase() === person.toLowerCase()
@@ -104,6 +40,12 @@ async function loadWishlist() {
     viewLink.href = `/${encodeURIComponent(displayName)}`;
     wishlistDiv.innerHTML = "";
 
+    if (!personData.items.length) {
+      const empty = document.createElement("p");
+      empty.className = "empty-state";
+      empty.textContent = "Noch keine Wünsche vorhanden.";
+      wishlistDiv.appendChild(empty);
+    }
     personData.items.forEach((item) => {
       const itemDiv = document.createElement("div");
       itemDiv.className = "wishlist-item";
@@ -123,12 +65,21 @@ async function loadWishlist() {
           ev.stopPropagation();
           openImagePreview(item.image, item.name);
         });
+        preview.tabIndex = 0;
+        preview.setAttribute("role", "button");
+        preview.setAttribute("aria-label", `${item.name}: Bild vergrößern`);
+        preview.addEventListener("keydown", event => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            openImagePreview(item.image, item.name);
+          }
+        });
         content.appendChild(preview);
       }
 
       const textWrapper = document.createElement("span");
       textWrapper.className = "wishlist-item__text";
-      const link = (item.url || "").trim();
+      const link = safeLink(item.url);
       const textEl = document.createElement(link ? "a" : "span");
       textEl.textContent = item.name;
       textEl.className = "wishlist-item__text-inner";
@@ -145,15 +96,21 @@ async function loadWishlist() {
       deleteButton.textContent = "\u2715";
       deleteButton.className = "delete-button";
       deleteButton.style.color = contrastColor(bg);
+      deleteButton.setAttribute("aria-label", `${item.name} löschen`);
       deleteButton.onclick = () => removeItem(item.id, item.name);
 
       itemDiv.appendChild(content);
+      const editButton = document.createElement("button");
+      editButton.textContent = "Bearbeiten";
+      editButton.setAttribute("aria-label", `${item.name} bearbeiten`);
+      editButton.onclick = () => startEditing(item);
+      itemDiv.appendChild(editButton);
       itemDiv.appendChild(deleteButton);
       wishlistDiv.appendChild(itemDiv);
     });
   } catch (error) {
     console.error("Error loading wishlist:", error);
-    alert("Fehler beim Laden der Wunschliste");
+    showError(error);
   }
 }
 
@@ -166,61 +123,69 @@ async function readFileAsDataURL(file) {
   });
 }
 
-window.addItem = async function () {
-  const itemInput = document.getElementById("item-name");
-  const linkInput = document.getElementById("item-link");
-  const imageInput = document.getElementById("item-image");
-  const item_name = itemInput.value.trim();
-  const item_link = linkInput.value.trim();
-  const imageFile = imageInput.files && imageInput.files[0];
+const itemForm = document.getElementById("item-form");
+let editingItem = null;
+let saving = false;
 
-  if (!item_name) return;
+function startEditing(item) {
+  if (saving) return;
+  editingItem = item;
+  itemForm.reset();
+  document.getElementById("item-name").value = item.name;
+  document.getElementById("item-link").value = item.url || "";
+  document.getElementById("form-heading").textContent = "Wunsch bearbeiten";
+  document.getElementById("save-item").textContent = "Speichern";
+  document.getElementById("cancel-edit").hidden = false;
+  document.getElementById("remove-image-label").hidden = !item.image;
+  document.getElementById("item-name").focus();
+  itemForm.scrollIntoView({ block: "center" });
+}
 
-  let item_image = "";
-  if (imageFile) {
-    try {
-      item_image = await readFileAsDataURL(imageFile);
-    } catch (error) {
-      console.error("Error reading image file:", error);
-      alert("Bild konnte nicht gelesen werden");
-      return;
-    }
-  }
+function resetEditor() {
+  editingItem = null;
+  itemForm.reset();
+  document.getElementById("form-heading").textContent = "Wunsch hinzufügen";
+  document.getElementById("save-item").textContent = "Hinzufügen";
+  document.getElementById("cancel-edit").hidden = true;
+  document.getElementById("remove-image-label").hidden = true;
+}
+document.getElementById("cancel-edit").addEventListener("click", resetEditor);
 
+itemForm.addEventListener("submit", async event => {
+  event.preventDefault();
+  if (saving) return;
+  const name = document.getElementById("item-name").value.trim();
+  if (!name) { showError(new Error("Bitte einen Wunsch eingeben.")); return; }
+  saving = true;
+  const controls = [...itemForm.elements];
+  controls.forEach(control => control.disabled = true);
+  document.getElementById("status").textContent = "";
   try {
-    const body = new URLSearchParams();
-    body.append("item_name", item_name);
-    if (item_link) body.append("item_link", item_link);
-    if (item_image) body.append("item_image", item_image);
-
-    const response = await fetch(`${backend}/people/${encodeURIComponent(person)}/items`, {
-      method: "POST",
-      body,
-    });
-    if (!response.ok) {
-      const errorText = await response.text();
-      const normalized = (errorText || "").toLowerCase();
-      const tooLarge =
-        response.status === 413 ||
-        normalized.includes("too large") ||
-        normalized.includes("entry-too-large");
-      if (tooLarge) {
-        alert("Das Bild ist zu groß. Bitte wählen Sie ein kleineres Bild.");
-        return;
+    const file = document.getElementById("item-image").files[0];
+    let image = document.getElementById("remove-image").checked ? "" : editingItem?.image || "";
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) throw new Error("Das Bild darf höchstens 5 MB groß sein.");
+      if (!["image/png", "image/jpeg", "image/gif", "image/webp"].includes(file.type)) {
+        throw new Error("Bitte ein PNG-, JPEG-, GIF- oder WebP-Bild auswählen.");
       }
-      throw new Error(errorText || `Fehler beim Hinzufügen: ${response.status}`);
+      image = await readFileAsDataURL(file);
     }
-    itemInput.value = "";
-    linkInput.value = "";
-    imageInput.value = "";
+    await api(`/people/${encodeURIComponent(person)}/items${editingItem ? `/${editingItem.id}` : ""}`, {
+      method: editingItem ? "PUT" : "POST",
+      body: new URLSearchParams({ item_name: name, item_link: document.getElementById("item-link").value.trim(), item_image: image }),
+    });
+    resetEditor();
     await loadWishlist();
   } catch (error) {
-    console.error("Error adding item:", error);
-    alert("Fehler beim Hinzufügen des Geschenks");
+    showError(error);
+  } finally {
+    saving = false;
+    controls.forEach(control => control.disabled = false);
   }
-};
+});
 
 async function removeItem(itemId, itemName) {
+  if (saving) return;
   const confirmed = confirm(
     `Sind Sie sicher, dass Sie "${itemName}" von der Wunschliste entfernen möchten?`
   );
@@ -230,18 +195,19 @@ async function removeItem(itemId, itemName) {
     const useLegacy = itemId === undefined || itemId === null;
     const identifier = useLegacy ? itemName : itemId;
     const pathSegment = useLegacy ? "items-by-name" : "items";
-    await fetch(
-      `${backend}/people/${encodeURIComponent(
+    await api(
+      `/people/${encodeURIComponent(
         person
       )}/${pathSegment}/${encodeURIComponent(identifier)}`,
       {
         method: "DELETE",
       }
     );
+    if (editingItem?.id === itemId) resetEditor();
     await loadWishlist();
   } catch (error) {
     console.error("Error removing item:", error);
-    alert("Fehler beim Entfernen des Geschenks");
+    showError(error);
   }
 }
 
