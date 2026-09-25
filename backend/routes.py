@@ -4,6 +4,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from database import engine
+from image_processing import compress_image
 import base64
 import binascii
 import re
@@ -82,24 +83,38 @@ def clean_image(value):
     }
     if not signatures[match[1]]:
         raise HTTPException(422, "Ungültiges Bildformat.")
-    return value
+    compressed = compress_image(raw)
+    return "data:image/webp;base64," + base64.b64encode(compressed).decode("ascii")
 
 
 @router.get("/people")
 def list_people():
-    result = {}
+    # Never select image data for the overview (including large legacy uploads).
     with engine.connect() as conn:
         rows = conn.execute(text("""
-            SELECT p.name, p.color, i.id, i.name, i.completed, i.url, i.image
+            SELECT p.name, p.color, COUNT(i.id) AS item_count
             FROM people p LEFT JOIN items i ON i.person_name = p.name
-            ORDER BY LOWER(p.name), p.name, i.id
+            GROUP BY p.name, p.color ORDER BY LOWER(p.name), p.name
         """))
-        for name, color, item_id, item_name, completed, url, image in rows:
-            person = result.setdefault(name, {"color": color, "items": []})
-            if item_id is not None:
-                person["items"].append(dict(id=item_id, name=item_name,
-                    completed=bool(completed), url=url, image=image))
-    return result
+        return {name: {"color": color, "item_count": count} for name, color, count in rows}
+
+
+@router.get("/people/{person}")
+def get_person(person: str):
+    with engine.connect() as conn:
+        owner = conn.execute(text(
+            "SELECT name, color FROM people WHERE LOWER(name) = LOWER(:person)"
+        ), {"person": person}).first()
+        if owner is None:
+            raise HTTPException(404, "Person nicht gefunden.")
+        rows = conn.execute(text("""
+            SELECT id, name, completed, url, image FROM items
+            WHERE person_name = :person ORDER BY id
+        """), {"person": owner[0]})
+        return {"name": owner[0], "color": owner[1], "items": [
+            dict(id=item_id, name=name, completed=bool(completed), url=url, image=image)
+            for item_id, name, completed, url, image in rows
+        ]}
 
 
 @router.post("/people")

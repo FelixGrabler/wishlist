@@ -23,21 +23,9 @@ window.pageInitializers.edit = function (pageRoot) {
 
   async function loadWishlist() {
     try {
-      const data = await api("/people");
+      const personData = await api(`/people/${encodeURIComponent(person)}`);
       if (!pageRoot.isConnected) return;
-      // case-insensitive lookup
-      const personKey = Object.keys(data).find(
-        (k) => k.toLowerCase() === person.toLowerCase()
-      );
-      const personData = personKey ? data[personKey] : null;
-
-      if (!personData) {
-        alert("Person nicht gefunden!");
-        void navigate("/", { replace: true });
-        return;
-      }
-
-      const displayName = personKey || person;
+      const displayName = personData.name;
       person = displayName;
       personNameHeader.textContent = `Wunschliste von ${displayName} bearbeiten`;
       viewLink.href = `/${encodeURIComponent(displayName)}`;
@@ -116,15 +104,6 @@ window.pageInitializers.edit = function (pageRoot) {
     }
   }
 
-  async function readFileAsDataURL(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  }
-
   const itemForm = getElement("item-form");
   let editingItem = null;
   let saving = false;
@@ -170,7 +149,7 @@ window.pageInitializers.edit = function (pageRoot) {
         if (!["image/png", "image/jpeg", "image/gif", "image/webp"].includes(file.type)) {
           throw new Error("Bitte ein PNG-, JPEG-, GIF- oder WebP-Bild auswählen.");
         }
-        image = await readFileAsDataURL(file);
+        image = await compressUpload(file);
       }
       await api(`/people/${encodeURIComponent(person)}/items${editingItem ? `/${editingItem.id}` : ""}`, {
         method: editingItem ? "PUT" : "POST",
@@ -227,7 +206,7 @@ window.pageInitializers.edit = function (pageRoot) {
       if (!pageRoot.isConnected) return;
       const key = Object.keys(people).find(name => name.toLowerCase() === person.toLowerCase());
       if (!key) throw new Error("Person nicht gefunden.");
-      const empty = people[key].items.length === 0;
+      const empty = people[key].item_count === 0;
       personMessage.textContent = empty
         ? `Möchten Sie „${key}“ löschen? Die Wunschliste ist leer.`
         : "Diese Person hat noch Wünsche. Bitte zuerst alle Wünsche entfernen, bevor Sie die Person löschen.";

@@ -56,7 +56,7 @@ def test_edit_complete_delete_and_failed_save(page):
     page.get_by_label("Wunsch", exact=True).fill("Final book")
     page.get_by_role("button", name="Speichern", exact=True).click()
     page.get_by_role("button", name="Final book löschen").wait_for()
-    data = page.request.get(f"{BASE}/api/people").json()[name]["items"]
+    data = page.request.get(f"{BASE}/api/people/{name}").json()["items"]
     assert len(data) == 1 and data[0]["completed"] is True
     page.on("dialog", lambda dialog: dialog.accept())
     page.get_by_role("button", name="Final book löschen").click()
@@ -139,7 +139,7 @@ def test_delete_person_dialog_guards_and_confirmation(page):
     expect(page.get_by_text("Diese Person hat noch Wünsche.", exact=False)).to_be_visible()
     expect(page.get_by_role("button", name="Person löschen", exact=True)).to_be_disabled()
     page.get_by_role("button", name="Abbrechen", exact=True).click()
-    data = page.request.get(f"{BASE}/api/people").json()[name]["items"]
+    data = page.request.get(f"{BASE}/api/people/{name}").json()["items"]
     page.request.delete(f"{BASE}/api/people/{name}/items/{data[0]['id']}")
     page.get_by_role("button", name="Person verwalten").click()
     expect(page.get_by_role("button", name="Person löschen", exact=True)).to_be_enabled()
@@ -151,7 +151,7 @@ def test_delete_person_dialog_guards_and_confirmation(page):
     page.once("dialog", lambda dialog: dialog.accept())
     page.get_by_role("button", name="Person löschen", exact=True).click()
     expect(page.get_by_text("Bitte zuerst alle Wünsche dieser Person entfernen.", exact=True)).to_be_visible()
-    data = page.request.get(f"{BASE}/api/people").json()[name]["items"]
+    data = page.request.get(f"{BASE}/api/people/{name}").json()["items"]
     page.request.delete(f"{BASE}/api/people/{name}/items/{data[0]['id']}")
     page.once("dialog", lambda dialog: dialog.accept())
     page.get_by_role("button", name="Person löschen", exact=True).click()
@@ -183,9 +183,9 @@ def test_floating_area_reaches_all_viewport_edges(page, viewport):
     page.set_viewport_size(viewport)
     page.clock.install(time=1_000_000)
     page.clock.pause_at(1_001_000)
-    page.route("**/api/people", lambda route: route.fulfill(json={"Edges": {"color": "#123456", "items": [
+    page.route("**/api/people/Edges", lambda route: route.fulfill(json={"name": "Edges", "color": "#123456", "items": [
         {"id": 1, "name": "Wish", "completed": False, "url": None, "image": None}
-    ]}}))
+    ]}))
     page.goto(f"{BASE}/Edges")
     expect(page.locator(".floating-item")).to_have_count(1)
     for size in [viewport, {"width": viewport["height"], "height": viewport["width"]}]:
@@ -259,3 +259,69 @@ def test_overlapping_wishes_each_get_a_turn_and_focus_stays_in_front(page):
     assert page.evaluate(top_item) == hovered
     # The floating stacking context cannot cover the music control.
     assert page.evaluate("document.elementFromPoint(30, 30).closest('button').id") == "music-toggle"
+
+
+def test_overview_fetches_no_wish_images_and_only_opens_selected_person(page):
+    name = "Lightweight-" + uuid4().hex[:8]
+    page.request.post(f"{BASE}/api/people", form={"name": name, "color": "#123456"})
+    page.request.post(f"{BASE}/api/people/{name}/items", form={"item_name": "Photo", "item_image": f"{BASE}/assets/frame.jpg"})
+    requests = []
+    page.on("request", lambda request: requests.append(request.url))
+    page.goto(BASE)
+    card = page.locator(".person-card").filter(has=page.get_by_role("heading", name=name, exact=True))
+    expect(card).to_be_visible()
+    assert [url for url in requests if "/api/" in url] == [f"{BASE}/api/people"]
+    overview = page.request.get(f"{BASE}/api/people").json()
+    assert all("items" not in person and "image" not in person for person in overview.values())
+    card.get_by_role("link", name="Wunschliste anzeigen").click()
+    expect(page.locator(".floating-item__image")).to_be_visible()
+    assert [url for url in requests if "/api/" in url] == [f"{BASE}/api/people", f"{BASE}/api/people/{name}"]
+
+
+def test_upload_is_compressed_before_sending_and_survives_rename(page):
+    import base64
+    from io import BytesIO
+    from urllib.parse import parse_qs
+    from PIL import Image
+    name = "Upload-" + uuid4().hex[:8]
+    page.request.post(f"{BASE}/api/people", form={"name": name, "color": "#123456"})
+    image = Image.new("RGB", (1200, 600), "red")
+    image.paste("blue", (600, 0, 1200, 600))
+    buffer = BytesIO()
+    image.save(buffer, format="PNG")
+    page.goto(f"{BASE}/edit/{name}")
+    page.get_by_label("Wunsch", exact=True).fill("Photo")
+    page.locator("#item-image").set_input_files({"name": "photo.png", "mimeType": "image/png", "buffer": buffer.getvalue()})
+    with page.expect_request(lambda request: request.method == "POST" and request.url.endswith("/items")) as uploaded:
+        page.get_by_role("button", name="Hinzufügen", exact=True).click()
+    value = parse_qs(uploaded.value.post_data)["item_image"][0]
+    raw = base64.b64decode(value.split(",", 1)[1])
+    assert len(raw) <= 30 * 1024
+    with Image.open(BytesIO(raw)) as result:
+        assert result.size == (400, 200)
+        assert result.getpixel((0, 0))[0] > 240
+        assert result.getpixel((399, 0))[2] > 240
+    page.get_by_role("button", name="Photo bearbeiten").click()
+    page.get_by_label("Wunsch", exact=True).fill("Renamed photo")
+    page.get_by_role("button", name="Speichern", exact=True).click()
+    expect(page.get_by_role("button", name="Renamed photo bearbeiten")).to_be_visible()
+    stored = page.request.get(f"{BASE}/api/people/{name}").json()["items"][0]
+    assert stored["image"] == value
+
+
+def test_laptop_cards_scale_with_viewport_width_and_height(page):
+    name = "Sizing-" + uuid4().hex[:8]
+    page.request.post(f"{BASE}/api/people", form={"name": name, "color": "#123456"})
+    page.request.post(f"{BASE}/api/people/{name}/items", form={"item_name": "Photo", "item_image": f"{BASE}/assets/frame.jpg"})
+    page.goto(f"{BASE}/{name}")
+    page.wait_for_function("document.querySelector('.floating-item img')?.naturalWidth > 0")
+    sizes = []
+    for width, height in [(1920, 1080), (1366, 768), (1366, 600), (390, 844)]:
+        page.set_viewport_size({"width": width, "height": height})
+        sizes.append(page.locator(".floating-item").evaluate("el => ({width: el.offsetWidth, height: el.offsetHeight, font: parseFloat(getComputedStyle(el).fontSize)})"))
+    large, laptop, short_laptop, mobile = sizes
+    assert laptop["width"] < large["width"] * 0.8
+    assert laptop["height"] < large["height"] * 0.85
+    assert short_laptop["height"] < laptop["height"]
+    assert large["font"] > laptop["font"] > short_laptop["font"] >= mobile["font"]
+    assert mobile["width"] <= 176

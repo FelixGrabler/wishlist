@@ -31,12 +31,17 @@ The supplied database credentials are development defaults.
   item, preserving its completion status. **Abbrechen** discards form changes.
 - Leave the image input empty to keep the current picture, select a replacement,
   or check **Vorhandenes Bild entfernen**. Uploads accept PNG, JPEG, GIF and WebP
-  up to 5 MB. Links must use HTTP or HTTPS.
+  up to 5 MB. New uploads are resized before transfer to fit within 400 × 400
+  pixels without cropping or upscaling, targeting at most 30 KiB of image data.
+  The server applies the same limits to direct API uploads. Pictures are stored
+  as WebP; transparency and photo orientation are preserved, camera metadata is
+  removed, and animated uploads become still pictures. Links use HTTP or HTTPS.
 - Public wishlists show completion checkboxes. Floating wishes stop while hovered
   or focused. They use the full viewport without top/bottom bounce padding.
   Border bounces rotate wishes to the front (at most once every three seconds),
   with a five-second fallback so every wish gets a turn. Hovered/focused wishes
-  stay in front during interaction. Mobile cards use about half the previous width, with smaller pictures.
+  stay in front during interaction. Card text, padding, and pictures scale with
+  viewport width and height, with compact mobile and capped large-screen sizes.
   The app respects the device’s reduced-motion preference without a motion button.
 - Music is enabled by default. Browsers that block audible autoplay start it on the
   first interaction. The speaker icon at the top left toggles music and remembers
@@ -53,6 +58,8 @@ The supplied database credentials are development defaults.
 - `backend/database.py`: PostgreSQL connection and additive startup schema setup.
 - `backend/routes.py`: API, input validation, and transactional updates.
 - `backend/main.py`: application lifespan and router registration.
+- `backend/image_processing.py`: server-side image validation and compression.
+- `frontend/js/image-upload.js`: resize and compress before uploading.
 - `frontend/templates`: overview, editor, and public wishlist pages.
 - `frontend/js/common.js`: requests, error reporting, previews, and media controls.
 - `frontend/js/navigation.js`: content navigation while retaining the media player;
@@ -67,6 +74,13 @@ capitalization; previously stored names that differ only by capitalization are
 not automatically merged. Legacy item-by-name delete and completion routes remain
 available. Item editing uses `PUT /people/{person}/items/{id}` with form fields
 `item_name`, `item_link`, and `item_image`; empty optional fields clear them.
+
+`GET /people` returns only `{name: {color, item_count}}`, without wish or image
+payloads. `GET /people/{person}` returns `{name, color, items}` for the selected
+person. The overview never requests wishlist images. Deploy the frontend and
+backend together because these read responses changed. Existing stored images
+are preserved; replacing or saving an uploaded picture applies compression.
+External image URLs are not downloaded or rewritten by the server.
 
 ## Tests
 
@@ -97,6 +111,9 @@ The browser suite covers editing and failed-save recovery, completion persistenc
 repeated video transitions, mobile layout, keyboard image previews, continuous
 music across navigation/history, and person deletion dialogs. API tests also check
 that deletion cannot remove a person whose wishlist contains a concurrently added item.
+Performance regressions cover lightweight overview responses, per-person loading,
+compression before upload and at the API, image aspect ratio/transparency/orientation,
+and card sizing across desktop, laptop, short laptop, and mobile viewports.
 
 After testing, remove the temporary database:
 

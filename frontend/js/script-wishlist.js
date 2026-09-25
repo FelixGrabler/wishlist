@@ -21,21 +21,9 @@ window.pageInitializers.wishlist = function (pageRoot) {
 
   async function loadWishlist() {
     try {
-      const data = await api("/people");
+      const personData = await api(`/people/${encodeURIComponent(person)}`);
       if (!pageRoot.isConnected) return;
-      // Case-insensitive person lookup
-      const personName = Object.keys(data).find(
-        (name) => name.toLowerCase() === person.toLowerCase()
-      );
-      const personData = personName ? data[personName] : null;
-
-      if (!personData) {
-        alert("Person nicht gefunden!");
-        void navigate("/", { replace: true });
-        return;
-      }
-
-      const displayName = personName || person;
+      const displayName = personData.name;
       person = displayName;
       personNameHeader.textContent = `Wunschliste von ${displayName}`;
       wishlistDiv.innerHTML = "";
